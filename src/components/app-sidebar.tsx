@@ -7,15 +7,12 @@ import { useSession, signOut } from "next-auth/react";
 import {
   Users,
   Building2,
-  ExternalLink,
   LogOut,
   ChevronsUpDown,
-  Layers,
-  Sparkles,
-  Shield,
-  Briefcase,
-  Compass,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import {
   Sidebar,
   SidebarContent,
@@ -57,39 +54,11 @@ const mainNavItems = [
   },
 ];
 
-const satelliteApps = [
-  {
-    name: "Client Management",
-    url: "http://localhost:3000",
-    icon: Shield,
-    isCurrent: true,
-  },
-  {
-    name: "Dexter",
-    url: "https://dexter.agforce.co.id",
-    icon: Sparkles,
-  },
-  {
-    name: "Venturis",
-    url: "https://venturis.agforce.co.id",
-    icon: Briefcase,
-  },
-  {
-    name: "Sixzense",
-    url: "https://sixzense.agforce.co.id",
-    icon: Compass,
-  },
-  {
-    name: "AG Force",
-    url: "https://agforce.co.id",
-    icon: Layers,
-  },
-];
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { isMobile } = useSidebar();
+  const { theme, setTheme } = useTheme();
   const user = session?.user as ExtendedUser | undefined;
 
   const initials = user?.name
@@ -166,49 +135,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* Satellite Apps Ecosystem */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">
-            Aplikasi Satelit (SSO)
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {satelliteApps.map((app) => {
-                const Icon = app.icon;
-                return (
-                  <SidebarMenuItem key={app.name}>
-                    <SidebarMenuButton
-                      asChild
-                      tooltip={`${app.name} ${app.isCurrent ? "(Portal Ini)" : "(Buka)"}`}
-                    >
-                      <a
-                        href={app.url}
-                        target={app.isCurrent ? "_self" : "_blank"}
-                        rel="noreferrer"
-                        className="flex items-center justify-between group/link"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Icon className="size-4 shrink-0 text-muted-foreground group-hover/link:text-sidebar-primary transition-colors" />
-                          <span className="truncate text-xs font-medium">
-                            {app.name}
-                          </span>
-                        </div>
-                        {app.isCurrent ? (
-                          <span className="text-[10px] bg-primary/10 text-primary font-semibold px-1.5 py-0.5 rounded shrink-0">
-                            Aktif
-                          </span>
-                        ) : (
-                          <ExternalLink className="size-3 shrink-0 text-muted-foreground/60 group-hover/link:text-muted-foreground transition-colors ml-auto" />
-                        )}
-                      </a>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
       {/* User Footer */}
@@ -260,6 +186,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </div>
                   </div>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  className="cursor-pointer gap-2 text-xs py-2"
+                >
+                  {theme === "dark" ? (
+                    <>
+                      <Sun className="size-4 text-amber-500" />
+                      <span>Mode Terang (Light)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="size-4 text-stone-400" />
+                      <span>Mode Gelap (Dark)</span>
+                    </>
+                  )}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => signOut({ callbackUrl: "/login" })}

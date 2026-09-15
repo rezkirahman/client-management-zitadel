@@ -278,10 +278,10 @@ export default function UsersManagementPage() {
       {/* Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Manajemen Karyawan
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Kelola akses Single Sign-On (SSO), status akun, dan PIN karyawan ekosistem Agforce.
           </p>
         </div>

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { AppSidebar } from "@/components/app-sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface ExtendedUser {
   name?: string | null;
@@ -53,24 +54,24 @@ export default function DashboardLayout({
   // Jika hak akses diperiksa dan user TIDAK punya grant ke Client Management
   if (hasAccess === false) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
-        <Card className="max-w-md w-full border-red-200 shadow-xl bg-white text-center">
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="max-w-md w-full border-destructive/30 shadow-xl bg-card text-center">
           <CardHeader className="space-y-3 pb-4">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
               <ShieldAlert className="h-8 w-8" />
             </div>
-            <CardTitle className="text-xl font-bold text-slate-900">
+            <CardTitle className="text-xl font-bold text-foreground">
               Akses Ditolak (403 Forbidden)
             </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
+            <CardDescription className="text-xs text-muted-foreground">
               Akun Anda berhasil terautentikasi melalui ZITADEL SSO, namun belum memiliki izin akses ke portal <strong>Client Management</strong>.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-2">
-            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-left space-y-1 text-slate-600">
-              <p><strong>Nama Akun:</strong> {user?.name || "User"}</p>
-              <p><strong>Identitas:</strong> {user?.email || user?.phone || "-"}</p>
-              <p className="text-[11px] text-amber-700 mt-2 font-medium flex items-center gap-1.5">
+            <div className="p-3 rounded-lg bg-muted/40 border border-border text-xs text-left space-y-1 text-muted-foreground">
+              <p><strong className="text-foreground">Nama Akun:</strong> {user?.name || "User"}</p>
+              <p><strong className="text-foreground">Identitas:</strong> {user?.email || user?.phone || "-"}</p>
+              <p className="text-[11px] text-amber-500 mt-2 font-medium flex items-center gap-1.5">
                 <Lock className="h-3.5 w-3.5 shrink-0" />
                 <span>Hanya user dengan izin &apos;Client Management&apos; yang dapat mengelola portal ini.</span>
               </p>
@@ -78,7 +79,7 @@ export default function DashboardLayout({
 
             <Button
               variant="outline"
-              className="w-full text-xs gap-2 text-slate-700 border-slate-300"
+              className="w-full text-xs gap-2 text-foreground border-border"
               onClick={() => signOut({ callbackUrl: "/login" })}
             >
               <LogOut className="h-3.5 w-3.5" />
@@ -109,7 +110,7 @@ export default function DashboardLayout({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <Badge
               variant="outline"
               className="gap-1.5 border-primary/20 bg-primary/10 py-1 px-2.5 text-xs text-primary"
@@ -118,6 +119,8 @@ export default function DashboardLayout({
               <span className="hidden sm:inline">ZITADEL IdP Connected</span>
               <span className="sm:hidden">ZITADEL</span>
             </Badge>
+
+            <ThemeToggle />
           </div>
         </header>
 
