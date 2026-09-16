@@ -11,25 +11,42 @@ export async function GET() {
   const nextAuthUrl = cleanEnv(process.env.NEXTAUTH_URL);
   const trustHost = cleanEnv(process.env.AUTH_TRUST_HOST);
 
-  let zitadelResponseStatus: number | null = null;
-  let zitadelResponseBody: string | null = null;
-  let zitadelError: string | null = null;
+  const userAgents = [
+    { name: "Mozilla_Chrome", ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+    { name: "Agforce_Backend", ua: "Agforce-Backend/1.0" },
+    { name: "Curl", ua: "curl/8.5.0" },
+    { name: "Node_Default", ua: undefined },
+  ];
 
-  try {
-    const res = await fetch(`${issuer}/v2/users`, {
-      method: "POST",
-      headers: {
+  const testResults: Record<string, { status: number | null; isCloudflare: boolean; preview: string }> = {};
+
+  for (const item of userAgents) {
+    try {
+      const headers: Record<string, string> = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${pat}`,
-        "User-Agent": "Mozilla/5.0",
-      },
-      body: JSON.stringify({ query: { limit: 1 } }),
-      cache: "no-store",
-    });
-    zitadelResponseStatus = res.status;
-    zitadelResponseBody = await res.text();
-  } catch (err: unknown) {
-    zitadelError = err instanceof Error ? err.message : String(err);
+      };
+      if (item.ua) headers["User-Agent"] = item.ua;
+
+      const res = await fetch(`${issuer}/v2/users`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ query: { limit: 1 } }),
+        cache: "no-store",
+      });
+      const text = await res.text();
+      testResults[item.name] = {
+        status: res.status,
+        isCloudflare: text.includes("challenges.cloudflare.com") || text.includes("Just a moment..."),
+        preview: text.slice(0, 200),
+      };
+    } catch (e: unknown) {
+      testResults[item.name] = {
+        status: null,
+        isCloudflare: false,
+        preview: e instanceof Error ? e.message : String(e),
+      };
+    }
   }
 
   return NextResponse.json({
@@ -47,10 +64,6 @@ export async function GET() {
       trustHost,
       nodeEnv: process.env.NODE_ENV,
     },
-    zitadelTest: {
-      status: zitadelResponseStatus,
-      responsePreview: zitadelResponseBody ? zitadelResponseBody.slice(0, 500) : null,
-      error: zitadelError,
-    },
+    zitadelTests: testResults,
   });
 }
