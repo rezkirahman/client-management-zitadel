@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:decrypt": "bun run scripts/test-decrypt.ts",
+    "migrate": "bun run scripts/migrate-users.ts"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.2.6",

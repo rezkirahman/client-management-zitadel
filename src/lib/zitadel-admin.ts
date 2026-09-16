@@ -1,4 +1,4 @@
-const ZITADEL_ISSUER = process.env.ZITADEL_ISSUER || "https://sso-dev.agforce.co.id";
+const ZITADEL_ISSUER = process.env.ZITADEL_ISSUER || "https://sso.agforce.co.id";
 const ZITADEL_PAT = process.env.ZITADEL_PAT || "";
 
 const COMMON_HEADERS = {
@@ -7,13 +7,60 @@ const COMMON_HEADERS = {
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
 };
 
-export const SATELLITE_APPS = [
-  { name: "Client Management", id: "390676529920608259", description: "Portal Admin User Management (Web Ini)" },
-  { name: "Dexter", id: "389811971056207875", description: "Aplikasi Operasional Dexter" },
-  { name: "Venturis", id: "389811986709350403", description: "Aplikasi Satelit Venturis" },
-  { name: "Sixzense", id: "389812005969594371", description: "Aplikasi Satelit Sixzense" },
-  { name: "AG Force", id: "389810084324050947", description: "Aplikasi Induk AG Force" },
-] as const;
+export interface SatelliteApp {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+/**
+ * Mengambil daftar seluruh project / aplikasi aktif secara dinamis dari ZITADEL Management API
+ */
+export async function getZitadelProjects(): Promise<SatelliteApp[]> {
+  if (!ZITADEL_PAT) {
+    return [
+      { id: "cm", name: "Client Management", description: "Portal Admin User Management" },
+      { id: "dx", name: "Dexter", description: "Aplikasi Operasional Dexter" },
+      { id: "vn", name: "Venturis", description: "Aplikasi Satelit Venturis" },
+      { id: "ag", name: "Agforce", description: "Aplikasi Induk AG Force" },
+    ];
+  }
+
+  try {
+    const res = await fetch(`${ZITADEL_ISSUER}/management/v1/projects/_search`, {
+      method: "POST",
+      headers: {
+        ...COMMON_HEADERS,
+        Authorization: `Bearer ${ZITADEL_PAT}`,
+      },
+      body: JSON.stringify({
+        query: { limit: 100 },
+      }),
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      console.error("[getZitadelProjects API Error]", res.status, await res.text());
+      return [];
+    }
+
+    const data = await res.json();
+    const projects: { id: string; name: string; state?: string }[] = data.result || [];
+    return projects
+      .filter((p) => !p.state || p.state === "PROJECT_STATE_ACTIVE")
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        description: `Aplikasi ${p.name}`,
+      }));
+  } catch (err) {
+    console.error("[getZitadelProjects Exception]", err);
+    return [];
+  }
+}
+
+// Fallback / legacy alias
+export const SATELLITE_APPS: SatelliteApp[] = [];
 
 export interface NormalizedUser {
   id: string;
@@ -116,7 +163,8 @@ export async function getZitadelUsers(): Promise<{ users: NormalizedUser[]; warn
     const dataUsers = await resUsers.json();
     const rawList: ZitadelUserItem[] = dataUsers.result || [];
 
-    // 2. Fetch User Grants
+    // 2. Fetch User Grants & Projects dynamically
+    const projects = await getZitadelProjects();
     const userGrantsMap: Record<string, { apps: string[]; grants: Record<string, string> }> = {};
     try {
       const resGrants = await fetch(`${ZITADEL_ISSUER}/management/v1/users/grants/_search`, {
@@ -136,8 +184,8 @@ export async function getZitadelUsers(): Promise<{ users: NormalizedUser[]; warn
           if (!userGrantsMap[g.userId]) {
             userGrantsMap[g.userId] = { apps: [], grants: {} };
           }
-          // Mencocokkan nama aplikasi berdasarkan ID atau nama
-          const appObj = SATELLITE_APPS.find((a) => a.id === g.projectId);
+          // Mencocokkan nama aplikasi berdasarkan ID atau nama secara dinamis
+          const appObj = projects.find((a) => a.id === g.projectId);
           const appName = appObj ? appObj.name : g.projectName;
 
           if (!userGrantsMap[g.userId].apps.includes(appName)) {
@@ -271,6 +319,8 @@ export async function updateUserAppGrants(
   }
 
   try {
+    const projects = await getZitadelProjects();
+
     // 1. Ambil grant yang saat ini dimiliki user
     const resSearch = await fetch(`${ZITADEL_ISSUER}/management/v1/users/grants/_search`, {
       method: "POST",
@@ -288,7 +338,7 @@ export async function updateUserAppGrants(
     if (resSearch.ok) {
       const data = await resSearch.json();
       currentGrants = (data.result || []).map((g: ZitadelGrantItem) => {
-        const appObj = SATELLITE_APPS.find((a) => a.id === g.projectId);
+        const appObj = projects.find((a) => a.id === g.projectId);
         return {
           id: g.id,
           projectId: g.projectId,
@@ -297,11 +347,16 @@ export async function updateUserAppGrants(
       });
     }
 
-    const currentAppNames = currentGrants.map((g) => g.appName);
+    const currentAppNames = currentGrants.map((g) => g.appName.toLowerCase());
 
     // 2. Tambah grant untuk aplikasi yang baru dicentang
-    for (const app of SATELLITE_APPS) {
-      if (targetAppNames.includes(app.name) && !currentAppNames.includes(app.name)) {
+    for (const app of projects) {
+      const isTargeted = targetAppNames.some(
+        (t) => t.toLowerCase() === app.name.toLowerCase() || t === app.id
+      );
+      const isAlreadyGranted = currentAppNames.includes(app.name.toLowerCase());
+
+      if (isTargeted && !isAlreadyGranted) {
         await fetch(`${ZITADEL_ISSUER}/management/v1/users/${userId}/grants`, {
           method: "POST",
           headers: {
@@ -317,7 +372,10 @@ export async function updateUserAppGrants(
 
     // 3. Hapus grant untuk aplikasi yang dihapus centangnya
     for (const g of currentGrants) {
-      if (!targetAppNames.includes(g.appName)) {
+      const shouldKeep = targetAppNames.some(
+        (t) => t.toLowerCase() === g.appName.toLowerCase() || t === g.projectId
+      );
+      if (!shouldKeep) {
         await fetch(`${ZITADEL_ISSUER}/management/v1/users/${userId}/grants/${g.id}`, {
           method: "DELETE",
           headers: {

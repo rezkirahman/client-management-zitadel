@@ -13,12 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function ThemeToggle({ className }: { className?: string }) {
-  const { setTheme, theme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
+  const { setTheme } = useTheme();
 
   return (
     <DropdownMenu>

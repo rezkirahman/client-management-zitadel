@@ -4,8 +4,8 @@ import ZitadelProvider from "next-auth/providers/zitadel";
 export const authOptions: NextAuthOptions = {
   providers: [
     ZitadelProvider({
-      issuer: process.env.ZITADEL_ISSUER || "https://sso-dev.agforce.co.id",
-      clientId: process.env.ZITADEL_CLIENT_ID || "390676713547302915",
+      issuer: process.env.ZITADEL_ISSUER || "https://sso.agforce.co.id",
+      clientId: process.env.ZITADEL_CLIENT_ID || "390958723364902048",
       clientSecret: process.env.ZITADEL_CLIENT_SECRET || "",
       client: {
         token_endpoint_auth_method: process.env.ZITADEL_CLIENT_SECRET ? "client_secret_post" : "none",
@@ -14,9 +14,25 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: {
           scope: "openid profile email phone urn:zitadel:iam:org:project:roles",
-          // Memastikan ZITADEL menampilkan layar pilih akun / login daripada otomatis login diam-diam
           prompt: "select_account",
         },
+      },
+      profile(profile) {
+        const name =
+          profile.name ||
+          [profile.given_name, profile.family_name].filter(Boolean).join(" ") ||
+          profile.preferred_username ||
+          profile.nickname ||
+          profile.email ||
+          profile.phone_number ||
+          profile.sub;
+        return {
+          id: profile.sub,
+          name: name,
+          email: profile.email || profile.phone_number || profile.preferred_username || "",
+          image: profile.picture || null,
+          phone: profile.phone_number || profile.phone || "",
+        };
       },
     }),
   ],
@@ -24,28 +40,78 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, profile, account }) {
       if (profile) {
         token.profile = profile;
-        const profileObj = profile as Record<string, unknown>;
-        token.name =
-          (profileObj.name as string) ||
-          (profileObj.preferred_username as string) ||
-          (profileObj.given_name as string) ||
-          token.name;
-        token.email =
-          (profileObj.email as string) ||
-          (profileObj.phone as string) ||
-          (profileObj.preferred_username as string) ||
-          token.email;
-        token.roles = profileObj["urn:zitadel:iam:org:project:roles"] || {};
       }
+      const p = (token.profile || profile || {}) as Record<string, unknown>;
+      const fullName =
+        (p.name as string) ||
+        [p.given_name, p.family_name].filter(Boolean).join(" ") ||
+        (p.preferred_username as string) ||
+        (p.nickname as string) ||
+        (p.email as string) ||
+        (p.phone_number as string) ||
+        (token.name as string);
+
+      if (fullName) token.name = fullName;
+
+      const emailOrPhone =
+        (p.email as string) ||
+        (p.phone_number as string) ||
+        (p.preferred_username as string) ||
+        (token.email as string);
+
+      if (emailOrPhone) token.email = emailOrPhone;
+      token.phone = (p.phone_number as string) || (p.phone as string) || (token.phone as string) || "";
+      token.roles = p["urn:zitadel:iam:org:project:roles"] || token.roles || {};
+
       if (account?.access_token) {
         token.accessToken = account.access_token;
       }
+
+      // Jika token.name masih berupa ID angka (ZITADEL User ID), ambil detail nama asli dari ZITADEL API
+      const userId = (token.sub as string) || (profile?.sub as string);
+      const isNumericId = token.name && /^\d+$/.test(String(token.name).trim());
+      if ((!token.realName || isNumericId) && userId && process.env.ZITADEL_PAT) {
+        try {
+          const res = await fetch(`${process.env.ZITADEL_ISSUER || "https://sso.agforce.co.id"}/v2/users/${userId}`, {
+            headers: {
+              Authorization: `Bearer ${process.env.ZITADEL_PAT}`,
+              "User-Agent": "Mozilla/5.0",
+              "Content-Type": "application/json",
+            },
+            cache: "no-store",
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const u = data.user;
+            if (u) {
+              const prof = u.human?.profile;
+              const realName =
+                prof?.displayName ||
+                [prof?.givenName, prof?.familyName].filter(Boolean).join(" ") ||
+                u.username;
+              if (realName) {
+                token.name = realName;
+                token.realName = realName;
+              }
+              const realEmail = u.human?.email?.email || u.username;
+              if (realEmail) token.email = realEmail;
+              const realPhone = u.human?.phone?.phone || u.username;
+              if (realPhone) token.phone = realPhone;
+            }
+          }
+        } catch (err) {
+          console.warn("[jwt callback] Failed to fetch user from ZITADEL API:", err);
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.name = token.name || session.user.name;
-        session.user.email = token.email || session.user.email;
+        session.user.name = (token.name as string) || session.user.name;
+        session.user.email = (token.email as string) || session.user.email;
+        (session.user as Record<string, unknown>).phone =
+          (token.phone as string) || (token.email as string);
       }
       if (token?.profile) {
         const profileObj = token.profile as Record<string, unknown>;

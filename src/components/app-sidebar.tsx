@@ -59,16 +59,38 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession();
   const { isMobile } = useSidebar();
   const { theme, setTheme } = useTheme();
-  const user = session?.user as ExtendedUser | undefined;
+  const rawUser = session?.user as (ExtendedUser & Record<string, unknown>) | undefined;
+  const isNumeric = (val?: unknown) => val && /^\d+$/.test(String(val).trim());
 
-  const initials = user?.name
-    ? user.name
+  const rawName = rawUser?.name ? String(rawUser.name) : "";
+  const rawPref = rawUser?.preferred_username ? String(rawUser.preferred_username) : "";
+  const rawEmail = rawUser?.email ? String(rawUser.email) : "";
+  const rawPhone = (rawUser?.phone || rawUser?.phone_number) ? String(rawUser.phone || rawUser.phone_number) : "";
+
+  const displayName: string =
+    (!isNumeric(rawName) ? rawName : "") ||
+    (rawUser?.given_name
+      ? `${rawUser.given_name} ${rawUser.family_name || ""}`.trim()
+      : "") ||
+    (!isNumeric(rawPref) ? rawPref : "") ||
+    rawEmail ||
+    (rawName ? rawName : "User");
+
+  const displaySub: string =
+    rawEmail ||
+    rawPhone ||
+    rawPref ||
+    "SSO User";
+
+  const initials = displayName && !isNumeric(displayName)
+    ? displayName
         .split(" ")
-        .map((n) => n[0])
+        .filter(Boolean)
+        .map((n: string) => n[0])
         .slice(0, 2)
         .join("")
         .toUpperCase()
-    : "AD";
+    : "US";
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -154,10 +176,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold text-xs">
-                      {user?.name || "Admin Agforce"}
+                      {displayName}
                     </span>
                     <span className="truncate text-[11px] text-muted-foreground">
-                      {user?.phone || user?.email || "HR Administrator"}
+                      {displaySub}
                     </span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
@@ -178,10 +200,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
                       <span className="truncate font-semibold text-xs">
-                        {user?.name || "Admin Agforce"}
+                        {displayName}
                       </span>
                       <span className="truncate text-[11px] text-muted-foreground">
-                        {user?.phone || user?.email || "HR Administrator"}
+                        {displaySub}
                       </span>
                     </div>
                   </div>

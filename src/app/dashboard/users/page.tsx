@@ -45,10 +45,11 @@ import {
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { NormalizedUser, SATELLITE_APPS } from "@/lib/zitadel-admin";
+import { NormalizedUser, SatelliteApp } from "@/lib/zitadel-admin";
 
 export default function UsersManagementPage() {
   const [users, setUsers] = useState<NormalizedUser[]>([]);
+  const [availableApps, setAvailableApps] = useState<SatelliteApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [warning, setWarning] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,7 +64,7 @@ export default function UsersManagementPage() {
     lastName: "",
     phone: "",
     pin: "",
-    apps: ["Dexter", "Venturis"] as string[],
+    apps: [] as string[],
   });
 
   // State Dialog Reset PIN
@@ -80,7 +81,19 @@ export default function UsersManagementPage() {
   const [manageAppsSubmitting, setManageAppsSubmitting] = useState(false);
   const [manageAppsSuccess, setManageAppsSuccess] = useState(false);
 
-  // Fetch Users
+  // Fetch Users & Projects Dinamis dari ZITADEL
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch("/api/projects");
+      const data = await res.json();
+      if (data.projects && Array.isArray(data.projects)) {
+        setAvailableApps(data.projects);
+      }
+    } catch (err) {
+      console.error("Failed to fetch projects", err);
+    }
+  };
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -103,6 +116,7 @@ export default function UsersManagementPage() {
 
   useEffect(() => {
     fetchUsers();
+    fetchProjects();
   }, []);
 
   // Filter Users
@@ -581,42 +595,54 @@ export default function UsersManagementPage() {
               <>
                 <div className="py-4 space-y-3">
                   <div className="space-y-2">
-                    {SATELLITE_APPS.map((app) => {
-                      const isChecked = targetApps.includes(app.name);
-                      return (
-                        <label
-                          key={app.name}
-                          className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                            isChecked
-                              ? "border-primary bg-primary/5 text-foreground"
-                              : "border-border hover:bg-accent text-foreground"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Checkbox
-                              checked={isChecked}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setTargetApps([...targetApps, app.name]);
-                                } else {
-                                  setTargetApps(targetApps.filter((a) => a !== app.name));
-                                }
-                              }}
-                            />
-                            <div>
-                              <div className="text-xs font-semibold">{app.name}</div>
-                              <div className="text-[10px] text-muted-foreground">Project ID: {app.id}</div>
-                            </div>
-                          </div>
-                          <Badge
-                            variant={isChecked ? "default" : "outline"}
-                            className="text-[10px]"
+                    {availableApps.length === 0 ? (
+                      <div className="py-4 text-center text-xs text-muted-foreground">
+                        Memuat daftar aplikasi dari ZITADEL...
+                      </div>
+                    ) : (
+                      availableApps.map((app) => {
+                        const isChecked = targetApps.some(
+                          (t) => t.toLowerCase() === app.name.toLowerCase() || t === app.id
+                        );
+                        return (
+                          <label
+                            key={app.id}
+                            className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                              isChecked
+                                ? "border-primary bg-primary/5 text-foreground"
+                                : "border-border hover:bg-accent text-foreground"
+                            }`}
                           >
-                            {isChecked ? "Diberikan" : "Tidak Ada"}
-                          </Badge>
-                        </label>
-                      );
-                    })}
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                checked={isChecked}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setTargetApps([...targetApps, app.name]);
+                                  } else {
+                                    setTargetApps(
+                                      targetApps.filter(
+                                        (a) => a.toLowerCase() !== app.name.toLowerCase() && a !== app.id
+                                      )
+                                    );
+                                  }
+                                }}
+                              />
+                              <div>
+                                <div className="text-xs font-semibold">{app.name}</div>
+                                <div className="text-[10px] text-muted-foreground">Project ID: {app.id}</div>
+                              </div>
+                            </div>
+                            <Badge
+                              variant={isChecked ? "default" : "outline"}
+                              className="text-[10px]"
+                            >
+                              {isChecked ? "Diberikan" : "Tidak Ada"}
+                            </Badge>
+                          </label>
+                        );
+                      })
+                    )}
                   </div>
                   <p className="text-[11px] text-muted-foreground">
                     User hanya akan bisa login ke aplikasi yang dicentang.
@@ -719,24 +745,37 @@ export default function UsersManagementPage() {
               <div className="space-y-2 pt-2 border-t border-border">
                 <Label className="text-xs font-semibold text-foreground">Akses Aplikasi Satelit</Label>
                 <div className="grid grid-cols-3 gap-2">
-                  {SATELLITE_APPS.map((app) => (
-                    <label
-                      key={app.name}
-                      className="flex items-center gap-2 p-2 rounded-lg border border-border hover:bg-accent cursor-pointer text-xs font-medium"
-                    >
-                      <Checkbox
-                        checked={newUser.apps.includes(app.name)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setNewUser({ ...newUser, apps: [...newUser.apps, app.name] });
-                          } else {
-                            setNewUser({ ...newUser, apps: newUser.apps.filter((a) => a !== app.name) });
-                          }
-                        }}
-                      />
-                      <span>{app.name}</span>
-                    </label>
-                  ))}
+                  {availableApps.length === 0 ? (
+                    <div className="col-span-3 py-2 text-center text-xs text-muted-foreground">
+                      Memuat aplikasi...
+                    </div>
+                  ) : (
+                    availableApps.map((app) => (
+                      <label
+                        key={app.id}
+                        className="flex items-center gap-2 p-2 rounded-lg border border-border hover:bg-accent cursor-pointer text-xs font-medium"
+                      >
+                        <Checkbox
+                          checked={newUser.apps.some(
+                            (a) => a.toLowerCase() === app.name.toLowerCase() || a === app.id
+                          )}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setNewUser({ ...newUser, apps: [...newUser.apps, app.name] });
+                            } else {
+                              setNewUser({
+                                ...newUser,
+                                apps: newUser.apps.filter(
+                                  (a) => a.toLowerCase() !== app.name.toLowerCase() && a !== app.id
+                                ),
+                              });
+                            }
+                          }}
+                        />
+                        <span className="truncate">{app.name}</span>
+                      </label>
+                    ))
+                  )}
                 </div>
               </div>
             </div>

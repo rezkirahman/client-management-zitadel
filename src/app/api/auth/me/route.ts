@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { SATELLITE_APPS } from "@/lib/zitadel-admin";
 
-const ZITADEL_ISSUER = process.env.ZITADEL_ISSUER || "https://sso-dev.agforce.co.id";
+const ZITADEL_ISSUER = process.env.ZITADEL_ISSUER || "https://sso.agforce.co.id";
 const ZITADEL_PAT = process.env.ZITADEL_PAT || "";
-const CLIENT_MANAGEMENT_PROJECT_ID = "390676529920608259";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -57,8 +55,8 @@ export async function GET() {
     const grants: { projectId: string; projectName: string }[] = data.result || [];
     
     // User punya akses jika memiliki grant ke Client Management atau adalah ZITADEL Admin
-    const hasClientManagement = grants.some(
-      (g) => g.projectId === CLIENT_MANAGEMENT_PROJECT_ID || g.projectName.toLowerCase().includes("client")
+    const hasClientManagement = grants.some((g) =>
+      g.projectName.toLowerCase().includes("client")
     );
 
     // Atau jika user adalah admin
@@ -69,10 +67,7 @@ export async function GET() {
     return NextResponse.json({
       authenticated: true,
       hasAccess: hasClientManagement || isAdmin,
-      grants: grants.map((g) => {
-        const appObj = SATELLITE_APPS.find((a) => a.id === g.projectId);
-        return appObj ? appObj.name : g.projectName;
-      }),
+      grants: grants.map((g) => g.projectName),
       user: session.user,
     });
   } catch (error: unknown) {

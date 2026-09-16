@@ -1,0 +1,4 @@
+id,firstname,lastname,phone,email,pin,salt_pin,gender,nik,id_karyawan,branchs
+1001,Budi,Santoso,081234567891,budi@agforce.co.id,aca42036ff5d9a4d4aca093d0c99821cacfbec1c55765acac4c37550bceb96eea49f,mC084tKJuV28nXT9soZKRSE5qosOTWFB,L,3171012345670001,EMP-001,Jakarta Selatan
+1002,Siti,Rahma,089876543212,,aca42036ff5d9a4d4aca093d0c99821cacfbec1c55765acac4c37550bceb96eea49f,mC084tKJuV28nXT9soZKRSE5qosOTWFB,P,3171012345670002,EMP-002,Surabaya
+1003,Ahmad,Fauzi,085712345673,ahmad@agforce.co.id,aca42036ff5d9a4d4aca093d0c99821cacfbec1c55765acac4c37550bceb96eea49f,mC084tKJuV28nXT9soZKRSE5qosOTWFB,L,3171012345670003,EMP-003,Bandung
