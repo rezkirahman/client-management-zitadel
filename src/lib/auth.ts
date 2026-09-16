@@ -1,14 +1,22 @@
 import { NextAuthOptions } from "next-auth";
 import ZitadelProvider from "next-auth/providers/zitadel";
 
+const cleanEnv = (val?: string) => (val || "").replace(/^["']|["']$/g, "").trim();
+const ZITADEL_ISSUER = cleanEnv(process.env.ZITADEL_ISSUER) || "https://sso.agforce.co.id";
+const ZITADEL_CLIENT_ID = cleanEnv(process.env.ZITADEL_CLIENT_ID) || "390958723364902048";
+const ZITADEL_CLIENT_SECRET = cleanEnv(process.env.ZITADEL_CLIENT_SECRET);
+const ZITADEL_PAT = cleanEnv(process.env.ZITADEL_PAT);
+const NEXTAUTH_SECRET = cleanEnv(process.env.NEXTAUTH_SECRET) || "agforce-sso-portal-secret-key-super-secure-2026";
+const NEXTAUTH_URL = cleanEnv(process.env.NEXTAUTH_URL);
+
 export const authOptions: NextAuthOptions = {
   providers: [
     ZitadelProvider({
-      issuer: process.env.ZITADEL_ISSUER || "https://sso.agforce.co.id",
-      clientId: process.env.ZITADEL_CLIENT_ID || "390958723364902048",
-      clientSecret: process.env.ZITADEL_CLIENT_SECRET || "",
+      issuer: ZITADEL_ISSUER,
+      clientId: ZITADEL_CLIENT_ID,
+      clientSecret: ZITADEL_CLIENT_SECRET,
       client: {
-        token_endpoint_auth_method: process.env.ZITADEL_CLIENT_SECRET ? "client_secret_post" : "none",
+        token_endpoint_auth_method: ZITADEL_CLIENT_SECRET ? "client_secret_post" : "none",
       },
       checks: ["pkce", "state"],
       authorization: {
@@ -70,11 +78,11 @@ export const authOptions: NextAuthOptions = {
       // Jika token.name masih berupa ID angka (ZITADEL User ID), ambil detail nama asli dari ZITADEL API
       const userId = (token.sub as string) || (profile?.sub as string);
       const isNumericId = token.name && /^\d+$/.test(String(token.name).trim());
-      if ((!token.realName || isNumericId) && userId && process.env.ZITADEL_PAT) {
+      if ((!token.realName || isNumericId) && userId && ZITADEL_PAT) {
         try {
-          const res = await fetch(`${process.env.ZITADEL_ISSUER || "https://sso.agforce.co.id"}/v2/users/${userId}`, {
+          const res = await fetch(`${ZITADEL_ISSUER}/v2/users/${userId}`, {
             headers: {
-              Authorization: `Bearer ${process.env.ZITADEL_PAT}`,
+              Authorization: `Bearer ${ZITADEL_PAT}`,
               "User-Agent": "Mozilla/5.0",
               "Content-Type": "application/json",
             },
@@ -133,25 +141,25 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 24 * 60 * 60, // 24 Jam
   },
-  secret: process.env.NEXTAUTH_SECRET || "agforce-sso-portal-secret-key-super-secure-2026",
+  secret: NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development" || process.env.NEXTAUTH_DEBUG === "true",
-  useSecureCookies: process.env.NODE_ENV === "production" || process.env.NEXTAUTH_URL?.startsWith("https://"),
+  useSecureCookies: process.env.NODE_ENV === "production" || NEXTAUTH_URL.startsWith("https://"),
   cookies: {
     sessionToken: {
-      name: `${process.env.NODE_ENV === "production" || process.env.NEXTAUTH_URL?.startsWith("https://") ? "__Secure-" : ""}next-auth.session-token`,
+      name: `${process.env.NODE_ENV === "production" || NEXTAUTH_URL.startsWith("https://") ? "__Secure-" : ""}next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production" || process.env.NEXTAUTH_URL?.startsWith("https://"),
+        secure: process.env.NODE_ENV === "production" || NEXTAUTH_URL.startsWith("https://"),
       },
     },
     callbackUrl: {
-      name: `${process.env.NODE_ENV === "production" || process.env.NEXTAUTH_URL?.startsWith("https://") ? "__Secure-" : ""}next-auth.callback-url`,
+      name: `${process.env.NODE_ENV === "production" || NEXTAUTH_URL.startsWith("https://") ? "__Secure-" : ""}next-auth.callback-url`,
       options: {
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production" || process.env.NEXTAUTH_URL?.startsWith("https://"),
+        secure: process.env.NODE_ENV === "production" || NEXTAUTH_URL.startsWith("https://"),
       },
     },
     csrfToken: {
@@ -160,7 +168,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production" || process.env.NEXTAUTH_URL?.startsWith("https://"),
+        secure: process.env.NODE_ENV === "production" || NEXTAUTH_URL.startsWith("https://"),
       },
     },
     pkceCodeVerifier: {
@@ -169,7 +177,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production" || process.env.NEXTAUTH_URL?.startsWith("https://"),
+        secure: process.env.NODE_ENV === "production" || NEXTAUTH_URL.startsWith("https://"),
         maxAge: 900,
       },
     },
@@ -179,7 +187,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production" || process.env.NEXTAUTH_URL?.startsWith("https://"),
+        secure: process.env.NODE_ENV === "production" || NEXTAUTH_URL.startsWith("https://"),
         maxAge: 900,
       },
     },

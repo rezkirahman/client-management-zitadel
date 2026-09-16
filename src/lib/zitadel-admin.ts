@@ -1,5 +1,6 @@
-const ZITADEL_ISSUER = process.env.ZITADEL_ISSUER || "https://sso.agforce.co.id";
-const ZITADEL_PAT = process.env.ZITADEL_PAT || "";
+const cleanEnv = (val?: string) => (val || "").replace(/^["']|["']$/g, "").trim();
+const ZITADEL_ISSUER = cleanEnv(process.env.ZITADEL_ISSUER) || "https://sso.agforce.co.id";
+const ZITADEL_PAT = cleanEnv(process.env.ZITADEL_PAT);
 
 const COMMON_HEADERS = {
   "Content-Type": "application/json",

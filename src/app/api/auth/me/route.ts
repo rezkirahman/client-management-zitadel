@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-const ZITADEL_ISSUER = process.env.ZITADEL_ISSUER || "https://sso.agforce.co.id";
-const ZITADEL_PAT = process.env.ZITADEL_PAT || "";
+const cleanEnv = (val?: string) => (val || "").replace(/^["']|["']$/g, "").trim();
+const ZITADEL_ISSUER = cleanEnv(process.env.ZITADEL_ISSUER) || "https://sso.agforce.co.id";
+const ZITADEL_PAT = cleanEnv(process.env.ZITADEL_PAT);
 
 export async function GET() {
   const session = await getServerSession(authOptions);
