@@ -1,0 +1,41 @@
+[
+  {
+    "id": 1001,
+    "firstname": "Budi",
+    "lastname": "Santoso",
+    "phone": "081234567891",
+    "email": "budi@agforce.co.id",
+    "pin": "aca42036ff5d9a4d4aca093d0c99821cacfbec1c55765acac4c37550bceb96eea49f",
+    "salt_pin": "mC084tKJuV28nXT9soZKRSE5qosOTWFB",
+    "gender": "L",
+    "nik": "3171012345670001",
+    "id_karyawan": "EMP-001",
+    "branchs": "Jakarta Selatan"
+  },
+  {
+    "id": 1002,
+    "firstname": "Siti",
+    "lastname": "Rahma",
+    "phone": "089876543212",
+    "email": null,
+    "pin": "aca42036ff5d9a4d4aca093d0c99821cacfbec1c55765acac4c37550bceb96eea49f",
+    "salt_pin": "mC084tKJuV28nXT9soZKRSE5qosOTWFB",
+    "gender": "P",
+    "nik": "3171012345670002",
+    "id_karyawan": "EMP-002",
+    "branchs": "Surabaya"
+  },
+  {
+    "id": 1003,
+    "firstname": "Ahmad",
+    "lastname": "Fauzi",
+    "phone": "085712345673",
+    "email": "ahmad@agforce.co.id",
+    "pin": "aca42036ff5d9a4d4aca093d0c99821cacfbec1c55765acac4c37550bceb96eea49f",
+    "salt_pin": "mC084tKJuV28nXT9soZKRSE5qosOTWFB",
+    "gender": "L",
+    "nik": "3171012345670003",
+    "id_karyawan": "EMP-003",
+    "branchs": "Bandung"
+  }
+]

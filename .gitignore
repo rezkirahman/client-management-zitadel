@@ -35,3 +35,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# migration data and backups
+/migration-*.json
+/migration-*.csv
+/*.sql
+/dev-simulation-backup/
+/prepared_fix_users.json
+/unique_failed_users.json
+/users-dev-test.json
+/query_results*.json
+
