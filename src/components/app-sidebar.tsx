@@ -11,6 +11,7 @@ import {
   ChevronsUpDown,
   Sun,
   Moon,
+  TerminalSquare,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
@@ -51,6 +52,12 @@ const mainNavItems = [
     url: "/dashboard/users",
     icon: Users,
     badge: null,
+  },
+  {
+    title: "API Tester (AGForce)",
+    url: "/dashboard/api-test",
+    icon: TerminalSquare,
+    badge: "OpenAPI",
   },
 ];
 
