@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import {
   Play,
   Copy,
@@ -20,6 +20,7 @@ import {
   Code2,
   Server,
   Zap,
+  LogIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,7 +89,8 @@ export default function ApiTestPage() {
   const [showDebugDetail, setShowDebugDetail] = useState<boolean>(true);
 
   // Extract session token
-  const sessionToken = (session as unknown as Record<string, unknown>)?.accessToken as string | undefined;
+  const rawSession = session as unknown as Record<string, unknown> | undefined;
+  const sessionToken = (rawSession?.accessToken as string | undefined) || (rawSession?.idToken as string | undefined);
   const activeToken = overrideToken ? customToken : (sessionToken || "");
 
   const handleSelectPreset = (preset: EnvironmentPreset) => {
@@ -274,6 +276,30 @@ export default function ApiTestPage() {
                   {activeToken ? `${activeToken.substring(0, 32)}...` : "— Tidak ada token aktif —"}
                 </div>
               </div>
+
+              {/* Unauthenticated notice with 1-click Login button */}
+              {!sessionToken && !overrideToken && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="text-xs text-amber-900 dark:text-amber-200">
+                      <p className="font-semibold">Sesi SSO Belum Login</p>
+                      <p className="text-[11px] mt-0.5 leading-relaxed">
+                        Anda saat ini belum login ke ZITADEL SSO di browser ini. Login sekarang agar Bearer Access Token Anda terisi otomatis.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="w-full h-8 text-xs gap-1.5 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs"
+                    onClick={() => signIn("zitadel", { callbackUrl: "/dashboard/api-test" })}
+                  >
+                    <LogIn className="h-3.5 w-3.5" />
+                    <span>Login ke ZITADEL SSO Sekarang</span>
+                  </Button>
+                </div>
+              )}
 
               <div className="flex items-center gap-2 pt-1">
                 <Checkbox
@@ -573,14 +599,25 @@ export default function ApiTestPage() {
 
               {/* Error Alert if error field exists and status is not standard HTTP response */}
               {responseResult?.error && !responseResult.data && (
-                <div className="mb-3 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-800 dark:text-rose-300">
+                <div className="mb-3 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-800 dark:text-rose-300 space-y-2">
                   <div className="flex items-start gap-2">
                     <ShieldAlert className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
                     <div>
                       <p className="font-semibold">Request Error</p>
-                      <p className="text-[11px] mt-0.5">{responseResult.error}</p>
+                      <p className="text-[11px] mt-0.5 leading-relaxed">{responseResult.error}</p>
                     </div>
                   </div>
+                  {!sessionToken && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full h-8 text-xs gap-1.5 font-semibold bg-rose-600 hover:bg-rose-700 text-white"
+                      onClick={() => signIn("zitadel", { callbackUrl: "/dashboard/api-test" })}
+                    >
+                      <LogIn className="h-3.5 w-3.5" />
+                      <span>Login ke ZITADEL SSO Sekarang</span>
+                    </Button>
+                  )}
                 </div>
               )}
 

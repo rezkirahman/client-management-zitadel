@@ -38,7 +38,9 @@ export async function POST(req: NextRequest) {
     const rawBody = method === "GET" ? "" : (typeof body.rawBody === "string" ? body.rawBody : (body.rawBody ? JSON.stringify(body.rawBody) : ""));
 
     // Extract access token from user session or from custom token override
-    const sessionToken = (session as unknown as Record<string, unknown>)?.accessToken as string | undefined;
+    const rawSession = session as unknown as Record<string, unknown> | null;
+    console.log("[api/agforce/test] session exists:", !!session, "accessToken exists:", !!rawSession?.accessToken, "idToken exists:", !!rawSession?.idToken);
+    const sessionToken = (rawSession?.accessToken as string | undefined) || (rawSession?.idToken as string | undefined);
     const token = (body.customToken && body.customToken.trim()) || sessionToken || "";
 
     if (!token) {

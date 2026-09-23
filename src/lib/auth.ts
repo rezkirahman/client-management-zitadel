@@ -74,6 +74,14 @@ export const authOptions: NextAuthOptions = {
       if (account?.access_token) {
         token.accessToken = account.access_token;
       }
+      if (account?.id_token) {
+        token.idToken = account.id_token;
+      }
+      if (account) {
+        console.log("[jwt callback] account keys on sign-in:", Object.keys(account));
+        console.log("[jwt callback] access_token length:", account.access_token?.length);
+        console.log("[jwt callback] id_token length:", account.id_token?.length);
+      }
 
       // Jika token.name masih berupa ID angka (ZITADEL User ID), ambil detail nama asli dari ZITADEL API
       const userId = (token.sub as string) || (profile?.sub as string);
@@ -115,6 +123,10 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
+      console.log("[session callback] token keys:", Object.keys(token));
+      console.log("[session callback] token.accessToken exists:", !!token.accessToken);
+      console.log("[session callback] token.idToken exists:", !!token.idToken);
+
       if (session.user) {
         session.user.name = (token.name as string) || session.user.name;
         session.user.email = (token.email as string) || session.user.email;
@@ -129,7 +141,8 @@ export const authOptions: NextAuthOptions = {
         };
       }
       (session as unknown as Record<string, unknown>).roles = token.roles;
-      (session as unknown as Record<string, unknown>).accessToken = token.accessToken;
+      (session as unknown as Record<string, unknown>).accessToken = token.accessToken || token.idToken || "";
+      (session as unknown as Record<string, unknown>).idToken = token.idToken || "";
       return session;
     },
   },
