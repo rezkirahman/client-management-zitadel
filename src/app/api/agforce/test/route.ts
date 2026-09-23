@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/auth";
 import {
   generateTimestamp,
@@ -15,8 +16,12 @@ interface TestRequestPayload {
   sourceKey?: string;
   secretKey?: string;
   customToken?: string;
+  sessionToken?: string;
   rawBody?: unknown;
 }
+
+const cleanEnv = (val?: string) => (val || "").replace(/^["']|["']$/g, "").trim();
+const NEXTAUTH_SECRET = cleanEnv(process.env.NEXTAUTH_SECRET) || "agforce-sso-portal-secret-key-super-secure-2026";
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,11 +42,40 @@ export async function POST(req: NextRequest) {
     const secretKey = body.secretKey || process.env.AGFORCE_SECRET_KEY || "sec_cb724b2440262b7c04f805d7e806cab1";
     const rawBody = method === "GET" ? "" : (typeof body.rawBody === "string" ? body.rawBody : (body.rawBody ? JSON.stringify(body.rawBody) : ""));
 
-    // Extract access token from user session or from custom token override
+    // Extract access token from all possible sources
     const rawSession = session as unknown as Record<string, unknown> | null;
-    console.log("[api/agforce/test] session exists:", !!session, "accessToken exists:", !!rawSession?.accessToken, "idToken exists:", !!rawSession?.idToken);
-    const sessionToken = (rawSession?.accessToken as string | undefined) || (rawSession?.idToken as string | undefined);
-    const token = (body.customToken && body.customToken.trim()) || sessionToken || "";
+    const rawUser = session?.user as Record<string, unknown> | undefined;
+
+    // Try getToken with various secureCookie configurations
+    let jwtToken = await getToken({ req, secret: NEXTAUTH_SECRET });
+    if (!jwtToken) {
+      jwtToken = await getToken({ req, secret: NEXTAUTH_SECRET, secureCookie: true });
+    }
+    if (!jwtToken) {
+      jwtToken = await getToken({ req, secret: NEXTAUTH_SECRET, secureCookie: false });
+    }
+
+    const token =
+      (body.customToken && body.customToken.trim()) ||
+      (body.sessionToken && String(body.sessionToken).trim()) ||
+      (rawSession?.accessToken as string | undefined) ||
+      (rawSession?.idToken as string | undefined) ||
+      (rawUser?.accessToken as string | undefined) ||
+      (rawUser?.idToken as string | undefined) ||
+      (jwtToken?.accessToken as string | undefined) ||
+      (jwtToken?.idToken as string | undefined) ||
+      "";
+
+    console.log("[api/agforce/test] Token resolution:", {
+      hasBodyCustomToken: !!body.customToken,
+      hasBodySessionToken: !!body.sessionToken,
+      hasSession: !!session,
+      hasSessionAccessToken: !!rawSession?.accessToken,
+      hasSessionUserAccessToken: !!rawUser?.accessToken,
+      hasJwtToken: !!jwtToken,
+      hasJwtAccessToken: !!jwtToken?.accessToken,
+      resolvedTokenLength: token.length,
+    });
 
     if (!token) {
       return NextResponse.json(
@@ -49,7 +83,7 @@ export async function POST(req: NextRequest) {
           success: false,
           status: 401,
           statusText: "Unauthorized",
-          error: "Access token tidak ditemukan. Silakan login ke SSO atau masukkan token manual pada kolom Custom Token.",
+          error: "Access token tidak ditemukan dari sesi SSO Anda. Pastikan Anda sudah login atau masukkan token secara manual.",
         },
         { status: 400 }
       );
