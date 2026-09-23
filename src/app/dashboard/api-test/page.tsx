@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import {
   Play,
@@ -15,7 +15,6 @@ import {
   Clock,
   Terminal,
   KeyRound,
-  ExternalLink,
   ChevronDown,
   ChevronRight,
   Code2,
@@ -35,6 +34,27 @@ interface EnvironmentPreset {
   name: string;
   url: string;
   badge: string;
+}
+
+interface ApiTestResponse {
+  success: boolean;
+  status: number;
+  statusText?: string;
+  latencyMs?: number;
+  data?: unknown;
+  headers?: Record<string, string>;
+  error?: string;
+  isConnectionRefused?: boolean;
+  debug?: {
+    targetUrl: string;
+    timestamp: string;
+    source: string;
+    signature: string;
+    signaturePayload: string;
+    maskedToken: string;
+    headersSent: Record<string, string>;
+    curlCommand: string;
+  };
 }
 
 const PRESETS: EnvironmentPreset[] = [
@@ -63,7 +83,7 @@ export default function ApiTestPage() {
 
   // Execution & Response State
   const [loading, setLoading] = useState<boolean>(false);
-  const [responseResult, setResponseResult] = useState<any | null>(null);
+  const [responseResult, setResponseResult] = useState<ApiTestResponse | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [showDebugDetail, setShowDebugDetail] = useState<boolean>(true);
 
@@ -87,12 +107,12 @@ export default function ApiTestPage() {
     }, 2000);
   };
 
-  const handleHitApi = async () => {
+  const handleHitApi = useCallback(async () => {
     setLoading(true);
     setResponseResult(null);
 
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         baseUrl: baseUrl.trim(),
         endpointPath: endpointPath.trim(),
         method: httpMethod,
@@ -114,19 +134,20 @@ export default function ApiTestPage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as ApiTestResponse;
       setResponseResult(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       setResponseResult({
         success: false,
         status: 0,
         statusText: "Client Exception",
-        error: err.message || "Gagal memproses request pengujian",
+        error: error?.message || "Gagal memproses request pengujian",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [baseUrl, endpointPath, httpMethod, sourceKey, secretKey, overrideToken, customToken, requestBody]);
 
   // Keyboard shortcut Ctrl + Enter to hit API
   useEffect(() => {
@@ -138,7 +159,7 @@ export default function ApiTestPage() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [baseUrl, endpointPath, httpMethod, sourceKey, secretKey, overrideToken, customToken, requestBody]);
+  }, [handleHitApi]);
 
   return (
     <div className="space-y-6 pb-12">
@@ -481,7 +502,7 @@ export default function ApiTestPage() {
                     )}
 
                     {/* Copy JSON */}
-                    {responseResult.data && (
+                    {responseResult.data !== undefined && responseResult.data !== null && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -601,7 +622,9 @@ export default function ApiTestPage() {
                       className="h-7 text-xs gap-1 px-2"
                       onClick={(e) => {
                         e.stopPropagation();
-                        copyToClipboard(responseResult.debug.curlCommand, "curl");
+                        if (responseResult.debug?.curlCommand) {
+                          copyToClipboard(responseResult.debug.curlCommand, "curl");
+                        }
                       }}
                     >
                       {copiedKey === "curl" ? (
@@ -645,7 +668,11 @@ export default function ApiTestPage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(responseResult.debug.signaturePayload, "raw-payload")}
+                          onClick={() => {
+                            if (responseResult.debug?.signaturePayload) {
+                              copyToClipboard(responseResult.debug.signaturePayload, "raw-payload");
+                            }
+                          }}
                           className="text-[10px] text-primary hover:underline flex items-center gap-1"
                         >
                           {copiedKey === "raw-payload" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
@@ -664,7 +691,11 @@ export default function ApiTestPage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(responseResult.debug.signature, "sig-hex")}
+                          onClick={() => {
+                            if (responseResult.debug?.signature) {
+                              copyToClipboard(responseResult.debug.signature, "sig-hex");
+                            }
+                          }}
                           className="text-[10px] text-primary hover:underline flex items-center gap-1"
                         >
                           {copiedKey === "sig-hex" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
@@ -708,7 +739,11 @@ export default function ApiTestPage() {
                       </Label>
                       <button
                         type="button"
-                        onClick={() => copyToClipboard(responseResult.debug.curlCommand, "curl-box")}
+                        onClick={() => {
+                          if (responseResult.debug?.curlCommand) {
+                            copyToClipboard(responseResult.debug.curlCommand, "curl-box");
+                          }
+                        }}
                         className="text-[11px] text-primary hover:underline flex items-center gap-1"
                       >
                         {copiedKey === "curl-box" ? (

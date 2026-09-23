@@ -8,13 +8,23 @@ import {
   generateCurlCommand,
 } from "@/lib/agforce-client";
 
+interface TestRequestPayload {
+  baseUrl?: string;
+  endpointPath?: string;
+  method?: string;
+  sourceKey?: string;
+  secretKey?: string;
+  customToken?: string;
+  rawBody?: unknown;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    let body: any = {};
+    let body: TestRequestPayload = {};
     try {
-      body = await req.json();
+      body = (await req.json()) as TestRequestPayload;
     } catch {
       body = {};
     }
@@ -75,7 +85,7 @@ export async function POST(req: NextRequest) {
     const startTime = performance.now();
     let responseStatus = 0;
     let responseStatusText = "";
-    let responseData: any = null;
+    let responseData: unknown = null;
     const responseHeaders: Record<string, string> = {};
 
     try {
@@ -142,20 +152,21 @@ export async function POST(req: NextRequest) {
           }),
         },
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorObj = err as Error & { cause?: { code?: string }; code?: string };
       const endTime = performance.now();
       const latencyMs = Math.round(endTime - startTime);
 
-      let errorMessage = err.message || "Gagal menghubungi AGForce API";
+      let errorMessage = errorObj.message || "Gagal menghubungi AGForce API";
       let isConnectionRefused = false;
 
-      if (err.name === "AbortError") {
+      if (errorObj.name === "AbortError") {
         errorMessage = "Request timeout setelah 10 detik";
       } else if (
-        err.cause?.code === "ECONNREFUSED" ||
-        err.code === "ECONNREFUSED" ||
-        err.message?.includes("fetch failed") ||
-        err.message?.includes("ECONNREFUSED")
+        errorObj.cause?.code === "ECONNREFUSED" ||
+        errorObj.code === "ECONNREFUSED" ||
+        errorObj.message?.includes("fetch failed") ||
+        errorObj.message?.includes("ECONNREFUSED")
       ) {
         isConnectionRefused = true;
         errorMessage = `Koneksi ditolak (${targetUrl}). Pastikan server AGForce sudah menyala di ${cleanBaseUrl}.`;
@@ -196,14 +207,15 @@ export async function POST(req: NextRequest) {
         },
       });
     }
-  } catch (error: any) {
-    console.error("[api/agforce/test] Internal handler error:", error);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("[api/agforce/test] Internal handler error:", err);
     return NextResponse.json(
       {
         success: false,
         status: 500,
         statusText: "Internal Server Error",
-        error: error.message || "Terjadi kesalahan internal pada server proxy",
+        error: err?.message || "Terjadi kesalahan internal pada server proxy",
       },
       { status: 500 }
     );
