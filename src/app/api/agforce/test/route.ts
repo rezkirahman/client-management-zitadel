@@ -7,6 +7,7 @@ import {
   generateSignature,
   getSignaturePayload,
   generateCurlCommand,
+  isSignatureRequired,
 } from "@/lib/agforce-client";
 
 interface TestRequestPayload {
@@ -18,6 +19,7 @@ interface TestRequestPayload {
   customToken?: string;
   sessionToken?: string;
   rawBody?: unknown;
+  requireSignature?: boolean;
 }
 
 const cleanEnv = (val?: string) => (val || "").replace(/^["']|["']$/g, "").trim();
@@ -34,9 +36,19 @@ export async function POST(req: NextRequest) {
       body = {};
     }
 
-    const cleanBaseUrl = (body.baseUrl || process.env.AGFORCE_API_BASE_URL || "http://localhost:8080").replace(/\/+$/, "");
+    const cleanBaseUrl = (body.baseUrl || process.env.AGFORCE_API_BASE_URL || "https://api.agforce.co.id").replace(/\/+$/, "");
     const rawPath = body.endpointPath || "/api/v1/me";
-    const endpointPath = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+    const fullEndpoint = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+    
+    // Separate path from query parameters
+    const [pathOnly, queryString] = fullEndpoint.split("?");
+    const queryParams: Record<string, string> = {};
+    if (queryString) {
+      new URLSearchParams(queryString).forEach((val, key) => {
+        queryParams[key] = val;
+      });
+    }
+
     const method = (body.method || "GET").toUpperCase();
     const sourceKey = body.sourceKey || process.env.AGFORCE_SOURCE_KEY || "client_management";
     const secretKey = body.secretKey || process.env.AGFORCE_SECRET_KEY || "sec_cb724b2440262b7c04f805d7e806cab1";
@@ -70,11 +82,8 @@ export async function POST(req: NextRequest) {
       hasBodyCustomToken: !!body.customToken,
       hasBodySessionToken: !!body.sessionToken,
       hasSession: !!session,
-      hasSessionAccessToken: !!rawSession?.accessToken,
-      hasSessionUserAccessToken: !!rawUser?.accessToken,
-      hasJwtToken: !!jwtToken,
-      hasJwtAccessToken: !!jwtToken?.accessToken,
       resolvedTokenLength: token.length,
+      endpoint: pathOnly,
     });
 
     if (!token) {
@@ -90,33 +99,49 @@ export async function POST(req: NextRequest) {
     }
 
     const timestamp = generateTimestamp();
-    const signature = generateSignature({
-      source: sourceKey,
-      timestamp,
-      rawBody,
-      endpointPath,
-      secretKey,
-      method,
-    });
 
-    const signaturePayload = getSignaturePayload({
-      source: sourceKey,
-      timestamp,
-      rawBody,
-      endpointPath,
-      secretKey,
-      method,
-    });
+    // Check whether X-Signature is required (Tier 1 vs Tier 2)
+    const sendSignature = typeof body.requireSignature === "boolean"
+      ? body.requireSignature
+      : isSignatureRequired(pathOnly);
 
-    const targetUrl = `${cleanBaseUrl}${endpointPath}`;
+    let signature = "";
+    let signaturePayload = "";
 
     const headers: Record<string, string> = {
       Authorization: `Bearer ${token}`,
       "X-Source": sourceKey,
       "X-Timestamp": timestamp,
-      "X-Signature": signature,
       "Content-Type": "application/json",
     };
+
+    if (sendSignature) {
+      signature = generateSignature({
+        source: sourceKey,
+        timestamp,
+        rawBody,
+        endpointPath: pathOnly,
+        queryParams,
+        secretKey,
+        method,
+      });
+
+      signaturePayload = getSignaturePayload({
+        source: sourceKey,
+        timestamp,
+        rawBody,
+        endpointPath: pathOnly,
+        queryParams,
+        secretKey,
+        method,
+      });
+
+      headers["X-Signature"] = signature;
+    } else {
+      signaturePayload = "(Endpoint ini Tier 1: Tidak memerlukan header X-Signature)";
+    }
+
+    const targetUrl = `${cleanBaseUrl}${fullEndpoint}`;
 
     const startTime = performance.now();
     let responseStatus = 0;
@@ -169,7 +194,8 @@ export async function POST(req: NextRequest) {
           targetUrl,
           timestamp,
           source: sourceKey,
-          signature,
+          signatureRequired: sendSignature,
+          signature: sendSignature ? signature : null,
           signaturePayload,
           maskedToken,
           headersSent: {
@@ -178,11 +204,12 @@ export async function POST(req: NextRequest) {
           },
           curlCommand: generateCurlCommand({
             baseUrl: cleanBaseUrl,
-            endpointPath,
+            endpointPath: pathOnly,
+            queryParams,
             method,
             source: sourceKey,
             timestamp,
-            signature,
+            signature: sendSignature ? signature : undefined,
             token,
             rawBody,
           }),
@@ -205,7 +232,7 @@ export async function POST(req: NextRequest) {
         errorObj.message?.includes("ECONNREFUSED")
       ) {
         isConnectionRefused = true;
-        errorMessage = `Koneksi ditolak (${targetUrl}). Pastikan server AGForce sudah menyala di ${cleanBaseUrl}.`;
+        errorMessage = `Koneksi ditolak (${targetUrl}). Pastikan server tujuan dapat diakses di ${cleanBaseUrl}.`;
       }
 
       const maskedToken = token.length > 25
@@ -223,7 +250,8 @@ export async function POST(req: NextRequest) {
           targetUrl,
           timestamp,
           source: sourceKey,
-          signature,
+          signatureRequired: sendSignature,
+          signature: sendSignature ? signature : null,
           signaturePayload,
           maskedToken,
           headersSent: {
@@ -232,11 +260,12 @@ export async function POST(req: NextRequest) {
           },
           curlCommand: generateCurlCommand({
             baseUrl: cleanBaseUrl,
-            endpointPath,
+            endpointPath: pathOnly,
+            queryParams,
             method,
             source: sourceKey,
             timestamp,
-            signature,
+            signature: sendSignature ? signature : undefined,
             token,
             rawBody,
           }),
